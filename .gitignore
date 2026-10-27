@@ -9,3 +9,5 @@ local.properties
 .cxx/
 *.jks
 *.keystore
+.signing/
+release-signing.properties

@@ -39,6 +39,7 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses ORDER BY date DESC, COALESCE(time, '') DESC, id DESC")
     fun observeAll(): kotlinx.coroutines.flow.Flow<List<Expense>>
     @Insert suspend fun insert(expense: Expense)
+    @Update suspend fun update(expense: Expense): Int
     @Delete suspend fun delete(expense: Expense)
     @Query("SELECT name FROM categories ORDER BY name COLLATE NOCASE")
     fun observeCategories(): kotlinx.coroutines.flow.Flow<List<String>>
@@ -142,6 +143,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     }
     fun addCategory(name: String) = viewModelScope.launch(Dispatchers.IO) { dao.insertCategory(Category(name)) }
     fun add(expense: Expense) = viewModelScope.launch(Dispatchers.IO) { dao.insert(expense) }
+    fun update(expense: Expense) = viewModelScope.launch(Dispatchers.IO) { dao.update(expense) }
     fun delete(expense: Expense) = viewModelScope.launch(Dispatchers.IO) { dao.delete(expense) }
 }
 

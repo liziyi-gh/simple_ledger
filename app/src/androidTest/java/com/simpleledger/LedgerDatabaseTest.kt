@@ -61,4 +61,26 @@ class LedgerDatabaseTest {
             assertEquals(6, dao.snapshot().size)
         } finally { db.close() }
     }
+
+    @Test fun editsOnlyTheSelectedPaymentWithoutChangingItsIdentityOrSource() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, LedgerDatabase::class.java).build()
+        try {
+            val dao = db.expenses()
+            val payment = Expense(amount = "12.5", currency = "人民币", date = "2026-10-26",
+                time = "12:30", category = "餐饮", description = "午餐", source = "支付宝")
+            dao.insertAll(listOf(payment, payment))
+            val before = dao.snapshot()
+            val original = before.first()
+            val edited = original.copy(amount = "0.123456", currency = "USDT", date = "2024-02-29",
+                time = null, category = null, description = "更正说明")
+            assertEquals(1, dao.update(edited))
+            val after = dao.snapshot()
+            assertEquals(2, after.size)
+            assertEquals(edited, after.single { it.id == original.id })
+            assertEquals("支付宝", after.single { it.id == original.id }.source)
+            assertEquals(before.single { it.id != original.id }, after.single { it.id != original.id })
+            assertEquals(0, dao.update(edited.copy(id = 999)))
+            assertEquals(2, dao.snapshot().size)
+        } finally { db.close() }
+    }
 }

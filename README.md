@@ -6,6 +6,8 @@
 
 类别支持保存后选择。日期使用年月日循环滚轮，并按月份和闰年限制有效天数。
 
+长按账单可编辑金额、币种、日期、可选时间、类别和说明，保存后更新原账单，取消则放弃本次编辑。列表不显示来源；原始来源仍保存于账单中并参与 CSV 导入导出。
+
 应用图标采用深青色渐变背景、米白记事本和薄荷绿笔，支持 Android 自适应形状和 Android 13+ 主题图标。图形改编自 [Lucide notebook-pen](https://lucide.dev/icons/notebook-pen)，ISC 许可随应用打包在 [lucide-LICENSE.txt](./app/src/main/assets/lucide-LICENSE.txt)。
 
 ## CSV 导入和导出
@@ -35,3 +37,9 @@ CSV 表头如下，日期、金额、币种为必需列，其余列可以省略�
 ## 验证
 
 `./gradlew build` 运行构建、CSV 单元测试和 lint。连接 Android 设备或启动官方模拟器后，运行 `./gradlew connectedDebugAndroidTest` 验证旧数据库升级、导入事务、重复支付和类别保存。
+
+## Release 签名构建
+
+Release 使用独立签名密钥。将 [release-signing.properties.example](./release-signing.properties.example) 复制为 `release-signing.properties` 并填写密钥位置、别名和密码，再执行 `./gradlew assembleRelease`；已签名安装包输出为 `app/build/outputs/apk/release/app-release.apk`。缺少有效签名配置时 release 构建会失败。
+
+本机生成的密钥保存在 `.signing/release.jks`，凭据保存在 `release-signing.properties`，均已排除在 Git 之外。请将这两项一同安全备份；以后发布更新需使用相同签名密钥。Debug 和 release 的签名不同，不能直接覆盖安装。

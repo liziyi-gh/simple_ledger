@@ -9,6 +9,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -49,7 +51,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun LedgerScreen(vm: LedgerViewModel = viewModel()) {
     val expenses by vm.expenses.collectAsStateWithLifecycle()
@@ -62,6 +64,7 @@ fun LedgerScreen(vm: LedgerViewModel = viewModel()) {
         if (uri != null) vm.exportCsv(uri)
     }
     var adding by rememberSaveable { mutableStateOf(false) }
+    var editingId by rememberSaveable { mutableStateOf<Long?>(null) }
     var deleting by remember { mutableStateOf<Expense?>(null) }
     Scaffold(
         topBar = { TopAppBar(title = { Text("极简记账") }, actions = {
@@ -78,10 +81,11 @@ fun LedgerScreen(vm: LedgerViewModel = viewModel()) {
             LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(bottom = 88.dp)) {
                 items(expenses, key = { it.id }) { expense ->
                     ListItem(
+                        modifier = Modifier.combinedClickable(onClick = {}, onLongClickLabel = "编辑支出", onLongClick = { editingId = expense.id }),
                         headlineContent = { Text("${expense.amount} ${expense.currency}") },
                         supportingContent = { Column {
                             if (expense.description.isNotEmpty()) Text(expense.description)
-                            Text(listOfNotNull(expense.date, expense.time, expense.category, expense.source.ifEmpty { null }).joinToString(" · "))
+                            Text(listOfNotNull(expense.date, expense.time, expense.category).joinToString(" · "))
                         } },
                         trailingContent = { IconButton(onClick = { deleting = expense }) { Icon(Icons.Default.Delete, contentDescription = "删除支出") } }
                     )
@@ -112,7 +116,11 @@ fun LedgerScreen(vm: LedgerViewModel = viewModel()) {
         }, confirmButton = { TextButton(onClick = vm::confirmImport) { Text("确认导入") } },
             dismissButton = { TextButton(onClick = vm::dismissTransfer) { Text("取消") } })
     }
-    if (adding) AddExpenseDialog(categories = categories, onAddCategory = vm::addCategory, onDismiss = { adding = false }, onSave = { vm.add(it); adding = false })
+    if (adding) ExpenseDialog(categories = categories, onAddCategory = vm::addCategory, onDismiss = { adding = false }, onSave = { vm.add(it); adding = false })
+    expenses.firstOrNull { it.id == editingId }?.let { expense ->
+        ExpenseDialog(initialExpense = expense, categories = categories, onAddCategory = vm::addCategory,
+            onDismiss = { editingId = null }, onSave = { vm.update(it); editingId = null })
+    }
     deleting?.let { expense ->
         AlertDialog(onDismissRequest = { deleting = null }, title = { Text("删除这笔支出？") },
             text = { Text("${expense.amount} ${expense.currency} · ${expense.date}") },
@@ -123,23 +131,24 @@ fun LedgerScreen(vm: LedgerViewModel = viewModel()) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddExpenseDialog(categories: List<String>, onAddCategory: (String) -> Unit, onDismiss: () -> Unit, onSave: (Expense) -> Unit) {
+fun ExpenseDialog(categories: List<String>, onAddCategory: (String) -> Unit, onDismiss: () -> Unit,
+    onSave: (Expense) -> Unit, initialExpense: Expense? = null) {
     val context = LocalContext.current
-    var amount by rememberSaveable { mutableStateOf("") }
-    var currency by rememberSaveable { mutableStateOf("人民币") }
-    var date by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
-    var time by rememberSaveable { mutableStateOf<String?>(null) }
-    var category by rememberSaveable { mutableStateOf("") }
-    var description by rememberSaveable { mutableStateOf("") }
+    var amount by rememberSaveable(initialExpense?.id) { mutableStateOf(initialExpense?.amount.orEmpty()) }
+    var currency by rememberSaveable(initialExpense?.id) { mutableStateOf(initialExpense?.currency ?: "人民币") }
+    var date by rememberSaveable(initialExpense?.id) { mutableStateOf(initialExpense?.date ?: LocalDate.now().toString()) }
+    var time by rememberSaveable(initialExpense?.id) { mutableStateOf(initialExpense?.time) }
+    var category by rememberSaveable(initialExpense?.id) { mutableStateOf(initialExpense?.category.orEmpty()) }
+    var description by rememberSaveable(initialExpense?.id) { mutableStateOf(initialExpense?.description.orEmpty()) }
     var newCategory by rememberSaveable { mutableStateOf("") }
     var categoryExpanded by remember { mutableStateOf(false) }
     var choosingDate by remember { mutableStateOf(false) }
-    var details by rememberSaveable { mutableStateOf(false) }
+    var details by rememberSaveable(initialExpense?.id) { mutableStateOf(initialExpense?.time != null) }
     var attempted by rememberSaveable { mutableStateOf(false) }
     val valid = amount.matches(Regex("[0-9]+(\\.[0-9]+)?")) && (amount.toBigDecimalOrNull()?.compareTo(BigDecimal.ZERO) ?: 0) > 0
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("新增支出") },
+        title = { Text(if (initialExpense == null) "新增支出" else "编辑支出") },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(value = amount, onValueChange = { amount = it.take(100) }, label = { Text("金额") },
@@ -182,7 +191,16 @@ fun AddExpenseDialog(categories: List<String>, onAddCategory: (String) -> Unit, 
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { attempted = true; if (valid) onSave(Expense(amount = amount.toBigDecimal().stripTrailingZeros().toPlainString(), currency = currency, date = date, time = time, category = category.trim().ifEmpty { null }, description = description.trim())) }) { Text("保存") } },
+        confirmButton = { TextButton(onClick = {
+            attempted = true
+            if (valid) {
+                val draft = Expense(id = initialExpense?.id ?: 0,
+                    amount = amount.toBigDecimal().stripTrailingZeros().toPlainString(), currency = currency,
+                    date = date, time = time, category = category.trim().ifEmpty { null },
+                    description = description.trim(), source = initialExpense?.source.orEmpty())
+                onSave(draft)
+            }
+        }) { Text("保存") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
     )
     if (choosingDate) WheelDateDialog(initialDate = LocalDate.parse(date), onDismiss = { choosingDate = false },
