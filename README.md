@@ -6,6 +6,8 @@
 
 类别支持保存后选择。日期使用年月日循环滚轮，并按月份和闰年限制有效天数。
 
+应用图标采用深青色渐变背景、米白记事本和薄荷绿笔，支持 Android 自适应形状和 Android 13+ 主题图标。图形改编自 [Lucide notebook-pen](https://lucide.dev/icons/notebook-pen)，ISC 许可随应用打包在 [lucide-LICENSE.txt](./app/src/main/assets/lucide-LICENSE.txt)。
+
 ## CSV 导入和导出
 
 首页右上角“导入”从系统文件选择器选取 CSV；先显示总笔数、日期范围、各币种金额以及将新增/跳过的笔数，确认后才写入。取消预览不会改变账单。所有记录通过校验后统一事务导入，有错误时不会导入部分记录；导入的类别也会保存供以后选择。
