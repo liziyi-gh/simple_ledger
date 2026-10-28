@@ -43,3 +43,9 @@ CSV 表头如下，日期、金额、币种为必需列，其余列可以省略�
 Release 使用独立签名密钥。将 [release-signing.properties.example](./release-signing.properties.example) 复制为 `release-signing.properties` 并填写密钥位置、别名和密码，再执行 `./gradlew assembleRelease`；已签名安装包输出为 `app/build/outputs/apk/release/app-release.apk`。缺少有效签名配置时 release 构建会失败。
 
 本机生成的密钥保存在 `.signing/release.jks`，凭据保存在 `release-signing.properties`，均已排除在 Git 之外。请将这两项一同安全备份；以后发布更新需使用相同签名密钥。Debug 和 release 的签名不同，不能直接覆盖安装。
+
+## 许可证
+
+本项目采用 **GNU 通用公共许可证第 3 版（GPL-3.0-only）**。你可以在遵守该许可证条款的前提下使用、修改和分发本项目。完整条款见 [LICENSE](./LICENSE)。本项目不提供任何担保，详见许可证正文。
+
+第三方组件及素材保留各自的许可证和版权声明；Lucide 图标的 ISC 许可证见 [lucide-LICENSE.txt](./app/src/main/assets/lucide-LICENSE.txt)。
