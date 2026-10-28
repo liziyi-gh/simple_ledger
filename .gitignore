@@ -11,3 +11,4 @@ local.properties
 *.keystore
 .signing/
 release-signing.properties
+*.csv
